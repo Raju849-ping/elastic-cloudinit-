@@ -1,1 +1,11 @@
+- hosts: elastic
+  become: yes
+  tasks:
+    - sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+      loop:
+        - { key: vm.max_map_count, value: 262144 }
+        - { key: vm.swappiness, value: 1 }
 
