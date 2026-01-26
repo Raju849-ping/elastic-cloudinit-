@@ -1,1 +1,5 @@
+elastic_user: elastic
+elastic_group: elastic
+elastic_home: /elastic
+cluster_name: elastic-prod
 
