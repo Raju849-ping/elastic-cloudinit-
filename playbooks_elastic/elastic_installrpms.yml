@@ -1,1 +1,9 @@
+- hosts: elastic
+  become: yes
+  tasks:
+    - apt:
+        name:
+          - openjdk-17-jdk
+          - curl
+        state: present
 
