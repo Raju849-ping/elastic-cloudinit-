@@ -1,1 +1,4 @@
+node_roles: ["data"]
+node_master: false
+node_data: true
 
