@@ -1,1 +1,5 @@
+- hosts: elastic
+  become: yes
+  roles:
+    - elastic
 
