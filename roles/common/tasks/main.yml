@@ -1,1 +1,10 @@
+- name: Create elastic group
+  group:
+    name: "{{ elastic_group }}"
+
+- name: Create elastic user
+  user:
+    name: "{{ elastic_user }}"
+    group: "{{ elastic_group }}"
+    shell: /bin/bash
 
