@@ -1,1 +1,12 @@
+- hosts: elastic
+  become: yes
+  tasks:
+    - pam_limits:
+        domain: elastic
+        limit_type: "{{ item.type }}"
+        limit_item: "{{ item.item }}"
+        value: "{{ item.value }}"
+      loop:
+        - { type: soft, item: nofile, value: 65536 }
+        - { type: hard, item: nofile, value: 65536 }
 
