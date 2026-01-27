@@ -1,29 +1,52 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
+### ---------- FUNCTIONS ----------
 ERR() {
-  echo "$*" > /tmp/error.log
+  echo "❌ $*" | tee /tmp/error.log
   exit 1
 }
 
-export PH=${PH:-dev}
-echo "$PH" | sudo tee /var/tmp/PH >/dev/null
+### ---------- ROOT CHECK ----------
+if [[ $EUID -ne 0 ]]; then
+  echo "❌ This script must be run as root"
+  exit 1
+fi
 
-REPO_URL="https://github.com/Raju849-ping/elastic-cloudinit-/edit/main/cloudinit.sh"
+### ---------- FIX TMP PERMS ----------
+chmod 1777 /var/tmp
+
+### ---------- ENV ----------
+PH=${PH:-dev}
+echo "$PH" > /var/tmp/PH
+
+### ---------- VARS ----------
+REPO_URL="https://github.com/Raju849-ping/elastic-cloudinit-.git"
 INSTALL_DIR="/opt/elastic/elastic-cloudinit"
+LOG="/var/log/elastic-cloudinit.log"
 
+exec > >(tee -a "$LOG") 2>&1
+
+echo "▶ Elastic cloudinit started (PH=$PH)"
+
+### ---------- FUNCTIONS ----------
 install_prereqs () {
-  apt-get update
+  echo "▶ Installing prerequisites"
+  apt-get update -y
   apt-get install -y git ansible curl lvm2
 }
 
 clone_repo () {
-  rm -rf $INSTALL_DIR
+  echo "▶ Cloning repository"
+  rm -rf "$INSTALL_DIR"
+  mkdir -p /opt/elastic
   git clone "$REPO_URL" "$INSTALL_DIR" || ERR "Git clone failed"
 }
 
 run_playbooks () {
-  cd $INSTALL_DIR
+  echo "▶ Running Ansible playbooks"
+  cd "$INSTALL_DIR"
+
   ansible-playbook -i inventory/hosts.ini playbooks_elastic/elastic_create_users.yml
   ansible-playbook -i inventory/hosts.ini playbooks_elastic/elastic_setlimits.yml
   ansible-playbook -i inventory/hosts.ini playbooks_elastic/elastic_setkernel.yml
@@ -33,8 +56,10 @@ run_playbooks () {
   ansible-playbook -i inventory/hosts.ini playbooks_elastic/elastic_service.yml
 }
 
+### ---------- EXECUTION ----------
 install_prereqs
 clone_repo
 run_playbooks
-touch /var/tmp/elastic_cloudinit_complete
 
+touch /var/tmp/elastic_cloudinit_complete
+echo "✅ Elastic cloudinit completed successfully"
