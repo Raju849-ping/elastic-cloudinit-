@@ -7,7 +7,7 @@ ERR() {
 }
 
 export PH=${PH:-dev}
-echo "$PH" > /var/tmp/PH
+echo "$PH" | sudo tee /var/tmp/PH >/dev/null
 
 REPO_URL="https://github.com/Raju849-ping/elastic-cloudinit-/edit/main/cloudinit.sh"
 INSTALL_DIR="/opt/elastic/elastic-cloudinit"
