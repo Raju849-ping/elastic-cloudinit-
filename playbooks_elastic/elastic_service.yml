@@ -10,11 +10,41 @@
       systemd:
         daemon_reload: yes
 
+    - name: Fix Elasticsearch directories permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: elasticsearch
+        group: elasticsearch
+        recurse: yes
+      loop:
+        - /var/lib/elasticsearch
+        - /var/log/elasticsearch
+        - /usr/share/elasticsearch
+
+    - name: Ensure GC log path is absolute
+      lineinfile:
+        path: /etc/elasticsearch/jvm.options
+        regexp: '^(-Xlog:gc.*file=)gc\.log'
+        line: '\1/var/log/elasticsearch/gc.log'
+        backrefs: yes
+
     - name: Enable and start Elasticsearch
       systemd:
         name: elasticsearch
         enabled: yes
         state: started
+      register: es_start
+      failed_when: false
+
+    - name: Show Elasticsearch recent logs if failed
+      shell: journalctl -u elasticsearch -n 50 --no-pager
+      when: es_start.failed
+      register: es_logs
+
+    - debug:
+        var: es_logs.stdout_lines
+      when: es_start.failed
 
     - name: Enable and start Kibana
       systemd:
