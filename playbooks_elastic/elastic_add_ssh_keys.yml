@@ -1,16 +1,23 @@
 ---
-- name: Ensure .ssh directory exists
-  file:
-    path: /home/elastic/.ssh
-    state: directory
-    owner: elastic
-    group: elastic
-    mode: '0700'
+- name: Add SSH keys for elastic user
+  hosts: localhost
+  become: yes
+  gather_facts: no
+  vars:
+    PH: prd   # or dev, whatever environment
+  tasks:
+    - name: Ensure .ssh directory exists
+      file:
+        path: /home/elastic/.ssh
+        state: directory
+        owner: elastic
+        group: elastic
+        mode: '0700'
 
-- name: Add SSH authorized keys
-  copy:
-    src: "/home/elastic/.ssh/id_rsa.pub"
-    dest: "/home/elastic/.ssh/authorized_keys"
-    owner: elastic
-    group: elastic
-    mode: '0600'
+    - name: Add SSH authorized keys
+      copy:
+        src: "/home/elastic/.ssh/id_rsa.pub"
+        dest: "/home/elastic/.ssh/authorized_keys"
+        owner: elastic
+        group: elastic
+        mode: '0600'
