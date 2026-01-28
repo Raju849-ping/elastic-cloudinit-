@@ -1,5 +1,19 @@
-- hosts: elastic
+---
+- name: Create elastic users
+  hosts: localhost
+  connection: local
   become: yes
-  roles:
-    - common
+  gather_facts: false
 
+  tasks:
+    - name: Create elastic group
+      group:
+        name: elastic
+        state: present
+
+    - name: Create elastic user
+      user:
+        name: elastic
+        group: elastic
+        shell: /bin/bash
+        create_home: yes
