@@ -22,4 +22,3 @@
         user: elastic
         key: "{{ lookup('file', 'ssh_keys/{{ PH }}.pub') }}"
         state: present
-
