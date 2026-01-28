@@ -45,7 +45,7 @@
     - debug:
         var: es_logs.stdout_lines
       when: es_start.failed
----
+
 - name: Manage Kibana service
   hosts: kibana
   become: yes
