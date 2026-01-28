@@ -12,4 +12,4 @@
         dest: "/home/elastic/.ssh/authorized_keys"
         owner: elastic
         group: elastic
-        mode: '0600
+        mode: '0600'
