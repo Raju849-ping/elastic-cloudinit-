@@ -1,11 +1,15 @@
-- hosts: elastic
+---
+- name: Set kernel params
+  hosts: localhost
+  connection: local
   become: yes
+  gather_facts: false
+
   tasks:
-    - sysctl:
-        name: "{{ item.key }}"
+    - name: Set sysctl values
+      sysctl:
+        name: "{{ item.name }}"
         value: "{{ item.value }}"
         state: present
       loop:
-        - { key: vm.max_map_count, value: 262144 }
-        - { key: vm.swappiness, value: 1 }
-
+        - { name: vm.max_map_count, value: 262144 }
