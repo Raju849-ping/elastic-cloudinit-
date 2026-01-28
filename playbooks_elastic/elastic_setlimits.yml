@@ -1,12 +1,17 @@
-- hosts: elastic
+---
+- name: Set elastic limits
+  hosts: localhost
+  connection: local
   become: yes
+  gather_facts: false
+
   tasks:
-    - pam_limits:
+    - name: Configure limits
+      pam_limits:
         domain: elastic
-        limit_type: "{{ item.type }}"
-        limit_item: "{{ item.item }}"
+        limit_type: "{{ item.limit_type }}"
+        limit_item: "{{ item.limit_item }}"
         value: "{{ item.value }}"
       loop:
-        - { type: soft, item: nofile, value: 65536 }
-        - { type: hard, item: nofile, value: 65536 }
-
+        - { limit_type: soft, limit_item: nofile, value: 65536 }
+        - { limit_type: hard, limit_item: nofile, value: 65536 }
