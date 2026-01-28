@@ -1,9 +1,14 @@
-- hosts: elastic
+---
+- name: Install elastic packages
+  hosts: localhost
+  connection: local
   become: yes
-  tasks:
-    - apt:
-        name:
-          - openjdk-17-jdk
-          - curl
-        state: present
+  gather_facts: false
 
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - elasticsearch
+          - kibana
+        state: present
