@@ -27,6 +27,14 @@ chmod 1777 /var/tmp
 echo "${PH:-dev}" > /var/tmp/PH
 
 install_prereqs() {
+  echo "▶ Waiting for apt/dpkg locks..."
+  while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+        fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+        fuser /var/cache/apt/archives/lock >/dev/null 2>&1
+  do
+    sleep 5
+  done
+
   echo "▶ Installing prerequisites"
   apt-get update -y
   apt-get install -y git ansible curl lvm2
