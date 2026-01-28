@@ -1,8 +1,23 @@
-- hosts: elastic
+---
+- name: Manage Elastic services
+  hosts: localhost
+  connection: local
   become: yes
+  gather_facts: false
+
   tasks:
-    - systemd:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Elasticsearch
+      systemd:
         name: elasticsearch
         enabled: yes
         state: started
 
+    - name: Enable and start Kibana
+      systemd:
+        name: kibana
+        enabled: yes
+        state: started
