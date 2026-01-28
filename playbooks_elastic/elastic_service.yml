@@ -45,7 +45,13 @@
     - debug:
         var: es_logs.stdout_lines
       when: es_start.failed
+---
+- name: Manage Kibana service
+  hosts: kibana
+  become: yes
+  gather_facts: false
 
+  tasks:
     - name: Enable and start Kibana
       systemd:
         name: kibana
