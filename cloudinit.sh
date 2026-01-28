@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-OG_FILE="/var/log/elastic-cloudinit.log"
+LOG_FILE="/var/log/elastic-cloudinit.log"
 INSTALL_BASE="/opt/elastic"
 INSTALL_DIR="${INSTALL_BASE}/elastic-cloudinit"
 TMP_DIR="/opt/elastic/.elastic-cloudinit-tmp"
