@@ -34,6 +34,8 @@ install_prereqs() {
   do
     sleep 5
   done
+  echo "▶ Fixing interrupted dpkg if any"
+  dpkg --configure -a || true
 
   echo "▶ Installing prerequisites"
   apt-get update -y
