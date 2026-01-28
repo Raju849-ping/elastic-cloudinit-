@@ -1,5 +1,27 @@
-- hosts: elastic
+---
+- name: Configure Elastic OS settings
+  hosts: localhost
+  connection: local
   become: yes
-  roles:
-    - elastic
+  gather_facts: false
 
+  tasks:
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb | default(0) > 0
+      ignore_errors: yes
+
+    - name: Set readahead
+      shell: echo 256 > /sys/class/block/sda/queue/read_ahead_kb
+      ignore_errors: yes
+
+    - name: Ensure elastic directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: elastic
+        group: elastic
+        mode: "0755"
+      loop:
+        - /var/lib/elasticsearch
+        - /var/log/elasticsearch
