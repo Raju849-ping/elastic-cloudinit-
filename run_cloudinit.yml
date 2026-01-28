@@ -1,0 +1,35 @@
+---
+- name: Bootstrap and run elastic cloudinit on all nodes
+  hosts: all
+  become: yes
+  gather_facts: false
+  environment:
+    PH: prd
+
+  tasks:
+    - name: Ensure /opt/elastic exists
+      file:
+        path: /opt/elastic
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure /opt/elastic/elastic-cloudinit exists
+      file:
+        path: /opt/elastic/elastic-cloudinit
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy cloudinit.sh from control node to all nodes
+      copy:
+        src: /home/elastic/elastic-cloudinit-/cloudinit.sh
+        dest: /opt/elastic/elastic-cloudinit/cloudinit.sh
+        mode: "0755"
+
+    - name: Run cloudinit script as root
+      shell: /bin/bash /opt/elastic/elastic-cloudinit/cloudinit.sh
+      args:
+        chdir: /opt/elastic/elastic-cloudinit
