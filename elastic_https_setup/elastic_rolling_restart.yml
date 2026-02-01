@@ -1,18 +1,22 @@
 ---
-- name: Rolling restart Elasticsearch
-  hosts: all
-  serial: 1
+- name: Rolling restart + HTTPS health check (IP-based)
+  hosts: masters
   become: yes
+  serial: 1
 
   tasks:
     - name: Restart Elasticsearch
-      service:
+      systemd:
         name: elasticsearch
         state: restarted
+        daemon_reload: yes
 
-    - name: Wait for HTTPS port
-      wait_for:
-        host: "{{ inventory_hostname }}"
-        port: 9200
-        delay: 10
-        timeout: 120
+    - name: Wait for Elasticsearch HTTPS API
+      uri:
+        url: "https://{{ ansible_host }}:9200"
+        validate_certs: no
+        status_code: 200
+      register: es_result
+      retries: 30
+      delay: 20
+      until: es_result.status == 200
