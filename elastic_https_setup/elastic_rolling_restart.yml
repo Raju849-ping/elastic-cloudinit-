@@ -1,0 +1,18 @@
+---
+- name: Rolling restart Elasticsearch
+  hosts: all
+  serial: 1
+  become: yes
+
+  tasks:
+    - name: Restart Elasticsearch
+      service:
+        name: elasticsearch
+        state: restarted
+
+    - name: Wait for HTTPS port
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 9200
+        delay: 10
+        timeout: 120
