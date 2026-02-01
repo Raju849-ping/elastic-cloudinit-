@@ -1,0 +1,78 @@
+---
+- name: FULL Elasticsearch Cleanup on all nodes
+  hosts: elasticsearch
+  become: yes
+  gather_facts: true
+
+  tasks:
+
+    - name: Stop Elasticsearch service
+      systemd:
+        name: elasticsearch
+        state: stopped
+        enabled: false
+      ignore_errors: yes
+
+    - name: Kill Elasticsearch JVM safely
+      shell: |
+        pgrep -u elasticsearch -f org.elasticsearch.bootstrap.Elasticsearch \
+        | xargs -r kill -9
+      ignore_errors: yes
+
+    - name: Remove Elasticsearch package (Debian/Ubuntu)
+      apt:
+        name: elasticsearch
+        state: absent
+        purge: yes
+        autoremove: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Remove Elasticsearch package (RHEL/CentOS)
+      yum:
+        name: elasticsearch
+        state: absent
+      when: ansible_os_family == "RedHat"
+
+    - name: Remove Elasticsearch directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/elasticsearch
+        - /var/lib/elasticsearch
+        - /var/log/elasticsearch
+        - /usr/share/elasticsearch
+        - /etc/systemd/system/elasticsearch.service
+        - /usr/lib/systemd/system/elasticsearch.service
+
+    - name: Remove temp files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/elasticsearch
+        - /var/tmp/elasticsearch
+
+    - name: Remove elasticsearch user
+      user:
+        name: elasticsearch
+        state: absent
+        remove: yes
+      ignore_errors: yes
+
+    - name: Remove elasticsearch group
+      group:
+        name: elasticsearch
+        state: absent
+      ignore_errors: yes
+
+    - name: Reload systemd
+      command: systemctl daemon-reexec
+
+    - name: Reload sysctl
+      command: sysctl -p
+      ignore_errors: yes
+
+    - name: Reboot node
+      reboot:
+        reboot_timeout: 600
