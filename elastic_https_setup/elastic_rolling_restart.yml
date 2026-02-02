@@ -1,11 +1,11 @@
 ---
-- name: Stop Elasticsearch service on all nodes
-  hosts: all   # You can change this to [masters], [data], or your specific group
+- name: Start Elasticsearch service on all nodes
+  hosts: all   # Change to [masters], [data], or your specific group if needed
   become: yes
 
   tasks:
-    - name: Stop Elasticsearch service
+    - name: Start Elasticsearch service
       systemd:
         name: elasticsearch
-        state: stopped
+        state: started
         daemon_reload: yes
