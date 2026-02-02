@@ -1,22 +1,11 @@
 ---
-- name: Rolling restart + HTTPS health check (IP-based)
-  hosts: masters
+- name: Stop Elasticsearch service on all nodes
+  hosts: all   # You can change this to [masters], [data], or your specific group
   become: yes
-  serial: 1
 
   tasks:
-    - name: Restart Elasticsearch
+    - name: Stop Elasticsearch service
       systemd:
         name: elasticsearch
-        state: restarted
+        state: stopped
         daemon_reload: yes
-
-    - name: Wait for Elasticsearch HTTPS API
-      uri:
-        url: "https://{{ ansible_host }}:9200"
-        validate_certs: no
-        status_code: 200
-      register: es_result
-      retries: 30
-      delay: 20
-      until: es_result.status == 200

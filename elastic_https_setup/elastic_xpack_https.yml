@@ -1,13 +1,13 @@
 ---
-- name: Enable Elasticsearch HTTPS & X-Pack Security
+- name: Configure Elasticsearch TLS (PEM based – Production)
   hosts: all
   become: yes
 
   vars:
+    es_user: elastic
+    es_group: elastic
     es_conf_dir: /etc/elasticsearch
     es_cert_dir: /etc/elasticsearch/certs
-    es_user: elasticsearch
-    es_group: elasticsearch
 
   tasks:
     - name: Create cert directory
@@ -18,39 +18,51 @@
         group: "{{ es_group }}"
         mode: 0750
 
-    - name: Copy node certificate
+    - name: Copy node private key
       copy:
-        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/node.p12
-        dest: "{{ es_cert_dir }}/node.p12"
+        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/udlprd.key
+        dest: "{{ es_cert_dir }}/udlprd.key"
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
-        mode: 0640
+        mode: 0600
 
-    - name: Copy CA certificate
+    - name: Copy node certificate
       copy:
-        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/ca.crt
-        dest: "{{ es_cert_dir }}/ca.crt"
+        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/udlprd.cert
+        dest: "{{ es_cert_dir }}/udlprd.cert"
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: 0644
 
-    - name: Configure elasticsearch.yml for HTTPS
+    - name: Copy CA certificate
+      copy:
+        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/ca.crt
+        dest: "{{ es_cert_dir }}/ca.pem"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: 0644
+
+    - name: Configure elasticsearch.yml (TLS + Security)
       blockinfile:
         path: "{{ es_conf_dir }}/elasticsearch.yml"
-        marker: "# {mark} ANSIBLE XPACK HTTPS"
+        marker: "# {mark} ANSIBLE XPACK SECURITY"
         block: |
           xpack.security.enabled: true
 
           xpack.security.transport.ssl.enabled: true
+          xpack.security.transport.ssl.key: {{ es_cert_dir }}/udlprd.key
+          xpack.security.transport.ssl.certificate: {{ es_cert_dir }}/udlprd.cert
+          xpack.security.transport.ssl.certificate_authorities:
+            - {{ es_cert_dir }}/ca.crt
           xpack.security.transport.ssl.verification_mode: certificate
-          xpack.security.transport.ssl.keystore.path: certs/node.p12
-          xpack.security.transport.ssl.truststore.path: certs/node.p12
 
           xpack.security.http.ssl.enabled: true
-          xpack.security.http.ssl.keystore.path: certs/node.p12
-          xpack.security.http.ssl.truststore.path: certs/node.p12
+          xpack.security.http.ssl.key: {{ es_cert_dir }}/udlprd.key
+          xpack.security.http.ssl.certificate: {{ es_cert_dir }}/udlprd.cert
+          xpack.security.http.ssl.certificate_authorities:
+            - {{ es_cert_dir }}/ca.crt
 
-    - name: Ensure ownership of Elasticsearch config
+    - name: Ensure elasticsearch config ownership
       file:
         path: "{{ es_conf_dir }}"
         owner: "{{ es_user }}"
