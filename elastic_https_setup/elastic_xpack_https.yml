@@ -20,7 +20,7 @@
 
     - name: Copy node private key
       copy:
-        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/udlprd.key
+        src: files/certs/udlprd.key
         dest: "{{ es_cert_dir }}/udlprd.key"
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
@@ -28,16 +28,16 @@
 
     - name: Copy node certificate
       copy:
-        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/udlprd.cert
-        dest: "{{ es_cert_dir }}/udlprd.cert"
+        src: files/certs/udlprd.crt
+        dest: "{{ es_cert_dir }}/udlprd.crt"
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: 0644
 
     - name: Copy CA certificate
       copy:
-        src: /home/elastic/elastic-cloudinit-/elastic_https_setup/files/certs/ca.crt
-        dest: "{{ es_cert_dir }}/ca.pem"
+        src: files/certs/ca.crt
+        dest: "{{ es_cert_dir }}/ca.crt"
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: 0644
@@ -51,14 +51,14 @@
 
           xpack.security.transport.ssl.enabled: true
           xpack.security.transport.ssl.key: {{ es_cert_dir }}/udlprd.key
-          xpack.security.transport.ssl.certificate: {{ es_cert_dir }}/udlprd.cert
+          xpack.security.transport.ssl.certificate: {{ es_cert_dir }}/udlprd.crt
           xpack.security.transport.ssl.certificate_authorities:
             - {{ es_cert_dir }}/ca.crt
           xpack.security.transport.ssl.verification_mode: certificate
 
           xpack.security.http.ssl.enabled: true
           xpack.security.http.ssl.key: {{ es_cert_dir }}/udlprd.key
-          xpack.security.http.ssl.certificate: {{ es_cert_dir }}/udlprd.cert
+          xpack.security.http.ssl.certificate: {{ es_cert_dir }}/udlprd.crt
           xpack.security.http.ssl.certificate_authorities:
             - {{ es_cert_dir }}/ca.crt
 
