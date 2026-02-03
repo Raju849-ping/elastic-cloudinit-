@@ -1,36 +1,61 @@
 ---
-- name: Install Elasticsearch on Ubuntu
+- name: Install Elastic prerequisites, monitoring and AWS tools (Ubuntu)
   hosts: localhost
-  become: yes
   gather_facts: yes
+  become: yes
+  ignore_errors: yes
 
   tasks:
-    - name: Install required packages
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg
-        state: present
-        update_cache: yes
-
-    - name: Add Elastic GPG key
-      apt_key:
-        url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
-        state: present
-
-    - name: Add Elastic APT repository
-      apt_repository:
-        repo: "deb https://artifacts.elastic.co/packages/8.x/apt stable main"
-        state: present
-        filename: elastic-8.x
 
     - name: Update apt cache
       apt:
         update_cache: yes
 
-    - name: Install Elasticsearch
+    - name: Install Elastic required packages
       apt:
-        name: elasticsearch
+        name:
+          - build-essential
+          - gcc
+          - g++
+          - libssl-dev
+          - libsasl2-2
+          - libsasl2-modules
+          - libsasl2-dev
+          - libkrb5-3
+          - snmp
+          - libcurl4
+          - libpcap0.8
+          - libldap-2.5-0
+          - numactl
+          - default-jdk
+        state: present
+
+    - name: Install Munin monitoring
+      apt:
+        name:
+          - munin
+          - munin-node
+        state: present
+
+    - name: Enable Munin iostat plugins
+      file:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        state: link
+        force: yes
+      loop:
+        - { src: /usr/share/munin/plugins/iostat, dest: /etc/munin/plugins/iostat }
+        - { src: /usr/share/munin/plugins/iostat_ios, dest: /etc/munin/plugins/iostat_ios }
+
+    - name: Enable and start munin-node
+      systemd:
+        name: munin-node
+        enabled: yes
+        state: started
+
+    - name: Install AWS tools
+      apt:
+        name:
+          - awscli
+          - s3cmd
         state: present
