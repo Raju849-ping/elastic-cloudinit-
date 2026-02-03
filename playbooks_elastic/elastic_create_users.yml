@@ -1,19 +1,39 @@
 ---
-- name: Create elastic users
+- name: Playbook for creating elastic user on local VM
   hosts: localhost
-  connection: local
   become: yes
   gather_facts: false
 
   tasks:
-    - name: Create elastic group
+
+    - name: Create "dba" group
       group:
-        name: elastic
+        name: dba
         state: present
 
-    - name: Create elastic user
+    - name: Create elastic OS user added to dba group
       user:
         name: elastic
-        group: elastic
-        shell: /bin/bash
+        group: dba
         create_home: yes
+        home: /users/elastic
+        state: present
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+
+    - name: Allow crons for elastic user
+      shell: "echo 'elastic' >> /etc/cron.allow"
+
+    - name: Create symlink for perl in local VM
+      shell: "ln -s /usr/cisco/packages/perl/perl-5.16.3/bin/perl /usr/local/bin/perl"
+      args:
+        warn: false
+
+    - name: Create elastic directories and set permissions
+      shell: |
+        mkdir -p /var/lib/elastic/
+        mkdir -p /elastic
+        chown -R elastic:dba /var/lib/elastic/
+        chown -R elastic:dba /users/elastic
+        chown -R elastic:dba /elastic
