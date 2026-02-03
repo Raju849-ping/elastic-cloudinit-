@@ -47,7 +47,7 @@ elastic_playbooks() {
     ansible-playbook "$elastic_ansible_loc/elastic_setkernal.yaml" \
         || _err "ERROR: set_kernel failed ($?)"
 
-    ansible-playbook "$elastic_ansible_loc/elastic_add_ssh_keys.yaml" \
+    ansible-playbook "$elastic_ansible_loc/elastic_create_users.yml" \
         || _err "ERROR: setup_ssh_keys failed ($?)"
 
     ansible-playbook "$elastic_ansible_loc/elastic_config.yaml" \
