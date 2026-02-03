@@ -1,73 +1,131 @@
 #!/bin/bash
-set -euo pipefail
 
-LOG_FILE="/var/log/elastic-cloudinit.log"
-INSTALL_BASE="/opt/elastic"
-INSTALL_DIR="${INSTALL_BASE}/elastic-cloudinit"
-TMP_DIR="/opt/elastic/.elastic-cloudinit-tmp"
-REPO_URL="https://github.com/Raju849-ping/elastic-cloudinit-.git"
-
-exec > >(tee -a "${LOG_FILE}") 2>&1
-
-echo "==== Elastic CloudInit Started ===="
-echo "Running as user: $(whoami)"
-echo "PH value: ${PH:-dev}"
-
-if [[ "$(id -u)" -ne 0 ]]; then
-  echo "ERROR: cloudinit.sh must be run as root"
-  exit 1
-fi
-
-### Ensure base directory exists
-mkdir -p "${INSTALL_BASE}"
-chmod 0755 "${INSTALL_BASE}"
-
-### Ensure /var/tmp usable
-chmod 1777 /var/tmp
-echo "${PH:-dev}" > /var/tmp/PH
-
-install_prereqs() {
-  echo "▶ Waiting for apt/dpkg locks..."
-  while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
-        fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
-        fuser /var/cache/apt/archives/lock >/dev/null 2>&1
-  do
-    sleep 5
-  done
-  echo "▶ Fixing interrupted dpkg if any"
-  dpkg --configure -a || true
-
-  echo "▶ Installing prerequisites"
-  apt-get update -y
-  apt-get install -y git ansible curl lvm2
+_err() {
+    echo "$*" > /tmp/ErrorLog.out
+    mail -s "elastic VM Init Failure on host $HOSTNAME" \
+        -S from=noreplyalert377@gmail.com \
+        rajuat8978@gmail.com < /tmp/ErrorLog.out
+    exit 1
 }
 
-clone_repo() {
-  echo "▶ Cloning repository safely"
+elastic_cloudinit_repo() {
 
-  rm -rf "${TMP_DIR}"
-  git clone "${REPO_URL}" "${TMP_DIR}"
+    cdb_cloudinit_git_url="https://github.com/Raju849-ping/elastic-cloudinit-"
+    cdb_cloudinit_loc="/opt/elastic/elastic-cloudinit"
 
-  rm -rf "${INSTALL_DIR}"
-  mv "${TMP_DIR}" "${INSTALL_DIR}"
+    mkdir -p /opt/elastic
+    mkdir -p /opt/softwares/rpms/
+
+    if [ -d "$cdb_cloudinit_loc/.git" ]; then
+        echo "elastic-cloudinit repo already exists, pulling latest changes"
+        cd "$cdb_cloudinit_loc" || _err "ERROR: cd failed"
+        git pull || _err "ERROR: git pull failed ($?)"
+    else
+        git clone "$cdb_cloudinit_git_url" "$cdb_cloudinit_loc" \
+            || _err "ERROR : elastic-cloudinit git clone failed ($?)"
+    fi
+
+    chmod -R 755 "$cdb_cloudinit_loc"
 }
 
-run_playbooks() {
-  echo "▶ Running Ansible playbooks"
-  cd "${INSTALL_DIR}"
+elastic_playbooks() {
 
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_create_users.yml
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_setlimits.yml
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_setkernel.yml
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_add_ssh_keys.yml -e "PH=$PH"
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_installrpms.yml
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_config.yml
-  ansible-playbook -i localhost, -c local playbooks_elastic/elastic_service.yml
+    if [[ -f /etc/lsb-release ]]; then
+        osversion='ubuntu'
+    else
+        osversion='unknown'
+    fi
+
+    elastic_ansible_loc="/opt/elastic/elastic-cloudinit/playbooks_elastic"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_create_users.yaml" \
+        || _err "ERROR: install_users failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_setlimits.yaml" \
+        || _err "ERROR: set_limit failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_setkernal.yaml" \
+        || _err "ERROR: set_kernel failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_add_ssh_keys.yaml" \
+        || _err "ERROR: setup_ssh_keys failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_config.yaml" \
+        || _err "ERROR: elastic_configuration failed ($?)"
 }
 
-install_prereqs
-clone_repo
-run_playbooks
+elastic_cleanup() {
+    rm -rf /opt/elastic/elastic-cloudinit
+}
 
-touch /var/tmp/elastic_cloudinit_complete
-echo "==== Elastic CloudInit Completed Successfully ===="
+install_git() {
+
+    echo "Installing required packages..."
+
+    dpkg -l | grep -qw git
+    if [ $? != 0 ]; then
+        apt-get update -y || _err "ERROR: apt update failed"
+        apt-get install -y git ansible lvm2 mailutils \
+            || _err "ERROR: apt-get install failed ($?)"
+    fi
+}
+
+disk_config() {
+
+    echo "Configuring LVM disks for Ubuntu practice VM (5GB)"
+
+    # ---- Disk sizes (MB) ----
+    elastic_size=500
+    product_size=700
+    log_size=512
+    audit_size=512
+    data_size=2800
+
+    # Prevent accidental re-format
+    if vgdisplay vgelastic >/dev/null 2>&1; then
+        echo "LVM already exists, skipping disk configuration"
+        return
+    fi
+
+    umount /mnt 2>/dev/null
+
+    pvcreate /dev/sdb || _err "ERROR: pvcreate failed"
+    vgcreate vgelastic /dev/sdb || _err "ERROR: vgcreate failed"
+
+    lvcreate -L ${elastic_size}M -n elastic vgelastic || _err "lvcreate elastic failed"
+    lvcreate -L ${product_size}M -n elastic_product vgelastic || _err "lvcreate product failed"
+    lvcreate -L ${log_size}M -n elastic_log vgelastic || _err "lvcreate log failed"
+    lvcreate -L ${audit_size}M -n elastic_auditlog vgelastic || _err "lvcreate audit failed"
+    lvcreate -L ${data_size}M -n elastic_data vgelastic || _err "lvcreate data failed"
+
+    mkfs.ext4 /dev/vgelastic/elastic
+    mkfs.ext4 /dev/vgelastic/elastic_product
+    mkfs.ext4 /dev/vgelastic/elastic_log
+    mkfs.ext4 /dev/vgelastic/elastic_auditlog
+    mkfs.ext4 /dev/vgelastic/elastic_data
+
+    mkdir -p /elastic /elastic/product /elastic/data /elastic/log /elastic/auditlog
+
+    mount /dev/vgelastic/elastic /elastic
+    mount /dev/vgelastic/elastic_product /elastic/product
+    mount /dev/vgelastic/elastic_data /elastic/data
+    mount /dev/vgelastic/elastic_log /elastic/log
+    mount /dev/vgelastic/elastic_auditlog /elastic/auditlog
+
+    echo "/dev/vgelastic/elastic /elastic ext4 defaults 0 2" >> /etc/fstab
+    echo "/dev/vgelastic/elastic_product /elastic/product ext4 defaults 0 2" >> /etc/fstab
+    echo "/dev/vgelastic/elastic_data /elastic/data ext4 defaults 0 2" >> /etc/fstab
+    echo "/dev/vgelastic/elastic_log /elastic/log ext4 defaults 0 2" >> /etc/fstab
+    echo "/dev/vgelastic/elastic_auditlog /elastic/auditlog ext4 defaults 0 2" >> /etc/fstab
+}
+
+##### MAIN EXECUTION FLOW #####
+
+install_git
+elastic_cloudinit_repo
+disk_config
+elastic_playbooks
+elastic_cleanup
+
+mkdir -p /var/lib/elastic-init
+touch /var/lib/elastic-init/node_ready
