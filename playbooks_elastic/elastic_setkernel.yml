@@ -1,15 +1,27 @@
 ---
-- name: Set kernel params
+- name: Playbook for setting kernel parameters
   hosts: localhost
-  connection: local
   become: yes
-  gather_facts: false
+  gather_facts: False
 
   tasks:
-    - name: Set sysctl values
+
+    - name: configuring the kernel-parameters
       sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
         state: present
-      loop:
-        - { name: vm.max_map_count, value: 262144 }
+      with_items:
+        - { name: 'fs.file-max', value: '98000' }
+        - { name: 'kernel.threads-max', value: '64000' }
+        - { name: 'vm.nr_hugepages', value: '0' }
+        - { name: 'vm.max_map_count', value: '262155' }
+        - { name: 'vm.swappiness', value: '0' }
+        - { name: 'vm.zone_reclaim_mode', value: '0' }
+        - { name: 'net.ipv6.conf.all.disable_ipv6', value: '1' }
+        - { name: 'kernel.msgmax', value: '65536' }
+        - { name: 'kernel.pid_max', value: '65534' }
+        - { name: 'net.ipv4.tcp_keepalive_time', value: '300' }
+
+    - name: executing the sysctl to make configuration permanent
+      shell: "sysctl -p /etc/sysctl.conf"
