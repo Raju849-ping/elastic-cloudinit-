@@ -2,9 +2,8 @@
 
 _err() {
     echo "$*" > /tmp/ErrorLog.out
-    mail -s "elastic VM Init Failure on host $HOSTNAME" \
-        -S from=noreplyalert377@gmail.com \
-        rajuat8978@gmail.com < /tmp/ErrorLog.out
+    mail -s "Elastic VM Init Failure on host $HOSTNAME" \
+        noreplyalert377@gmail.com < /tmp/ErrorLog.out
     exit 1
 }
 
