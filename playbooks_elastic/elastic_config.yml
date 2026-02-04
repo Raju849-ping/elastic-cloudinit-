@@ -1,5 +1,5 @@
 ---
-- name: Minimal Elastic VM configuration for 6-node lab
+- name: Minimal Elastic VM configuration for 6-node lab (Ubuntu-safe)
   hosts: localhost
   become: yes
   gather_facts: false
@@ -15,24 +15,48 @@
 
   tasks:
 
-    - name: Disable Transparent HugePages
+    - name: Disable Transparent HugePages using systemd
+      copy:
+        dest: /etc/systemd/system/disable-thp.service
+        content: |
+          [Unit]
+          Description=Disable Transparent Huge Pages
+          After=sysinit.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/sh -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
+          ExecStart=/bin/sh -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start disable-thp service
+      systemd:
+        name: disable-thp
+        enabled: yes
+        daemon_reload: yes
+        state: started
+
+    - name: Disable Transparent HugePages immediately
       shell: |
         echo never > /sys/kernel/mm/transparent_hugepage/enabled
         echo never > /sys/kernel/mm/transparent_hugepage/defrag
-        echo "echo never > /sys/kernel/mm/transparent_hugepage/enabled" >> /etc/rc.d/rc.local
-        echo "echo never > /sys/kernel/mm/transparent_hugepage/defrag" >> /etc/rc.d/rc.local
-        chmod +x /etc/rc.d/rc.local
+      args:
+        executable: /bin/bash
 
-    - name: Set disk read-ahead (update disk if needed)
+    - name: Set disk read-ahead to 0
       shell: |
         echo 0 > /sys/class/block/sda/queue/read_ahead_kb
-        echo "echo 0 > /sys/class/block/sda/queue/read_ahead_kb" >> /etc/rc.d/rc.local
+      args:
+        executable: /bin/bash
 
-    - name: Disable SELinux permanently
+    - name: Disable SELinux permanently (if exists)
       lineinfile:
         path: /etc/selinux/config
         regexp: '^SELINUX='
         line: SELINUX=disabled
+      ignore_errors: yes  # Ubuntu may not have SELinux
 
     - name: Update /etc/hosts with all nodes
       lineinfile:
