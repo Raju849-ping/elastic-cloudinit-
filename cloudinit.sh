@@ -10,7 +10,7 @@ _err() {
 elastic_cloudinit_repo() {
 
     cdb_cloudinit_git_url="https://github.com/Raju849-ping/elastic-cloudinit-"
-    cdb_cloudinit_loc="/opt/elastic/elastic-cloudinit"
+    cdb_cloudinit_loc="/opt/elastic/elastic-cloudinit-"
 
     mkdir -p /opt/elastic
     mkdir -p /opt/softwares/rpms/
@@ -35,21 +35,21 @@ elastic_playbooks() {
         osversion='unknown'
     fi
 
-    elastic_ansible_loc="/opt/elastic/elastic-cloudinit/playbooks_elastic"
-
-    ansible-playbook "$elastic_ansible_loc/elastic_create_users.yaml" \
-        || _err "ERROR: install_users failed ($?)"
-
-    ansible-playbook "$elastic_ansible_loc/elastic_setlimits.yaml" \
-        || _err "ERROR: set_limit failed ($?)"
-
-    ansible-playbook "$elastic_ansible_loc/elastic_setkernal.yaml" \
-        || _err "ERROR: set_kernel failed ($?)"
+    elastic_ansible_loc="/opt/elastic/elastic-cloudinit-/playbooks_elastic"
 
     ansible-playbook "$elastic_ansible_loc/elastic_create_users.yml" \
+        || _err "ERROR: install_users failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_setkernel.yml" \
+        || _err "ERROR: set_kernel failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_setlimits.yml" \
+        || _err "ERROR: set_limit failed ($?)"
+
+    ansible-playbook "$elastic_ansible_loc/elastic_installrpms.yml" \
         || _err "ERROR: setup_ssh_keys failed ($?)"
 
-    ansible-playbook "$elastic_ansible_loc/elastic_config.yaml" \
+    ansible-playbook "$elastic_ansible_loc/elastic_config.yml" \
         || _err "ERROR: elastic_configuration failed ($?)"
 }
 
@@ -74,11 +74,11 @@ disk_config() {
     echo "Configuring LVM disks for Ubuntu practice VM (5GB)"
 
     # ---- Disk sizes (MB) ----
-    elastic_size=500
-    product_size=700
-    log_size=512
-    audit_size=512
-    data_size=2800
+    elastic_size=1000
+    product_size=2000
+    log_size=2000
+    audit_size=1000
+    data_size=16000
 
     # Prevent accidental re-format
     if vgdisplay vgelastic >/dev/null 2>&1; then
