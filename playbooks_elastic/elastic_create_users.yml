@@ -25,11 +25,6 @@
     - name: Allow crons for elastic user
       shell: "echo 'elastic' >> /etc/cron.allow"
 
-    - name: Create symlink for perl in local VM
-      shell: "ln -s /usr/cisco/packages/perl/perl-5.16.3/bin/perl /usr/local/bin/perl"
-      args:
-        warn: false
-
     - name: Create elastic directories and set permissions
       shell: |
         mkdir -p /var/lib/elastic/
