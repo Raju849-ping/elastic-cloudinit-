@@ -8,7 +8,7 @@
     nodes:
       - { name: "udl-prd-ms1", ip: "192.168.100.28" }
       - { name: "udl-prd-ms2", ip: "192.168.100.32" }
-      - { name: "udl-prd-ms2", ip: "192.168.100.26" }
+      - { name: "udl-prd-ms3", ip: "192.168.100.26" }
       - { name: "udl-dn-1", ip: "192.168.100.30" }
       - { name: "udl-dn-2", ip: "192.168.100.31" }
       - { name: "udl-dn-3", ip: "192.168.100.27" }
@@ -22,17 +22,13 @@
         echo "echo never > /sys/kernel/mm/transparent_hugepage/enabled" >> /etc/rc.d/rc.local
         echo "echo never > /sys/kernel/mm/transparent_hugepage/defrag" >> /etc/rc.d/rc.local
         chmod +x /etc/rc.d/rc.local
-      args:
-        warn: false
 
-    - name: Set disk read-ahead for sdb
+    - name: Set disk read-ahead (update disk if needed)
       shell: |
-        echo 0 > /sys/class/block/sdb/queue/read_ahead_kb
-        echo "echo 0 > /sys/class/block/sdb/queue/read_ahead_kb" >> /etc/rc.local
-      args:
-        warn: false
+        echo 0 > /sys/class/block/sda/queue/read_ahead_kb
+        echo "echo 0 > /sys/class/block/sda/queue/read_ahead_kb" >> /etc/rc.d/rc.local
 
-    - name: Disable SELinux
+    - name: Disable SELinux permanently
       lineinfile:
         path: /etc/selinux/config
         regexp: '^SELINUX='
@@ -44,8 +40,3 @@
         line: "{{ item.ip }} {{ item.name }}"
         create: yes
       loop: "{{ nodes }}"
-
-    - name: Regenerate GRUB2 config (for THP disable)
-      shell: /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg
-      args:
-        warn: false
