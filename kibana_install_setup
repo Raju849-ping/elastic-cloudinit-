@@ -1,0 +1,95 @@
+---
+- name: Install and configure Kibana (tar based)
+  hosts: localhost
+  become: yes
+  gather_facts: false
+
+  vars:
+    kibana_version: "8.17.1"
+    kibana_tar: "kibana-{{ kibana_version }}-linux-x86_64.tar.gz"
+    kibana_url: "https://artifacts.elastic.co/downloads/kibana/{{ kibana_tar }}"
+    kibana_sha_url: "{{ kibana_url }}.sha512"
+
+    kibana_base: /elastic/product
+    kibana_home: "{{ kibana_base }}/kibana-{{ kibana_version }}"
+    kibana_config: "{{ kibana_home }}/config/kibana.yml"
+    kibana_log_dir: /elastic/log/kibana
+
+  tasks:
+
+    # -------------------------------------------------
+    # Download Kibana
+    # -------------------------------------------------
+    - name: Download Kibana tar.gz
+      become_user: elastic
+      get_url:
+        url: "{{ kibana_url }}"
+        dest: "{{ kibana_base }}/{{ kibana_tar }}"
+        mode: '0644'
+
+    - name: Download Kibana sha512
+      become_user: elastic
+      get_url:
+        url: "{{ kibana_sha_url }}"
+        dest: "{{ kibana_base }}/{{ kibana_tar }}.sha512"
+        mode: '0644'
+
+    # -------------------------------------------------
+    # Extract Kibana
+    # -------------------------------------------------
+    - name: Extract Kibana
+      become_user: elastic
+      unarchive:
+        src: "{{ kibana_base }}/{{ kibana_tar }}"
+        dest: "{{ kibana_base }}"
+        remote_src: yes
+        creates: "{{ kibana_home }}"
+
+    - name: Set ownership on Kibana directory
+      file:
+        path: "{{ kibana_home }}"
+        owner: elastic
+        group: dba
+        recurse: yes
+
+    # -------------------------------------------------
+    # Logging directory
+    # -------------------------------------------------
+    - name: Create Kibana log directory
+      file:
+        path: "{{ kibana_log_dir }}"
+        state: directory
+        owner: elastic
+        group: dba
+        mode: '0755'
+
+    # -------------------------------------------------
+    # Configure kibana.yml
+    # -------------------------------------------------
+    - name: Configure kibana.yml
+      blockinfile:
+        path: "{{ kibana_config }}"
+        create: yes
+        owner: elastic
+        group: dba
+        mode: '0640'
+        block: |
+          server.port: 5601
+          server.host: "0.0.0.0"
+          server.name: kibana-node-1
+
+          elasticsearch.hosts:
+            - "http://192.168.100.28:9200"
+            - "http://192.168.100.32:9200"
+            - "http://192.168.100.26:9200"
+
+          logging:
+            appenders:
+              file:
+                type: file
+                fileName: {{ kibana_log_dir }}/kibana.log
+                layout:
+                  type: json
+            root:
+              appenders: [file]
+              level: info
