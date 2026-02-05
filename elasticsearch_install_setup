@@ -1,0 +1,171 @@
+---
+- name: Prepare elastic directories and install Elasticsearch (tar based)
+  hosts: localhost
+  become: yes
+  gather_facts: false
+
+  vars:
+    elastic_base: /elastic
+    elastic_product: /elastic/product
+    es_version: "8.17.0"
+    es_tar: "elasticsearch-{{ es_version }}-linux-x86_64.tar.gz"
+    es_url: "https://artifacts.elastic.co/downloads/elasticsearch/{{ es_tar }}"
+    es_sha_url: "{{ es_url }}.sha512"
+    es_home: "{{ elastic_product }}/elasticsearch-{{ es_version }}"
+    es_config: "{{ es_home }}/config"
+
+  tasks:
+
+    # -------------------------------------------------
+    # Directory layout
+    # -------------------------------------------------
+    - name: Create elastic directory structure
+      file:
+        path: "{{ elastic_base }}/{{ item }}"
+        state: directory
+        owner: elastic
+        group: dba
+        mode: '0755'
+      loop:
+        - auditlog
+        - log
+        - admin
+        - data
+        - product
+
+    - name: Ensure /elastic ownership
+      file:
+        path: "{{ elastic_base }}"
+        owner: elastic
+        group: dba
+        recurse: yes
+
+    # -------------------------------------------------
+    # Download & extract Elasticsearch
+    # -------------------------------------------------
+    - name: Download Elasticsearch tar.gz
+      become_user: elastic
+      get_url:
+        url: "{{ es_url }}"
+        dest: "{{ elastic_product }}/{{ es_tar }}"
+        mode: '0644'
+
+    - name: Download Elasticsearch sha512
+      become_user: elastic
+      get_url:
+        url: "{{ es_sha_url }}"
+        dest: "{{ elastic_product }}/{{ es_tar }}.sha512"
+        mode: '0644'
+
+    - name: Extract Elasticsearch
+      become_user: elastic
+      unarchive:
+        src: "{{ elastic_product }}/{{ es_tar }}"
+        dest: "{{ elastic_product }}"
+        remote_src: yes
+        creates: "{{ es_home }}"
+
+    - name: Set ownership on Elasticsearch home
+      file:
+        path: "{{ es_home }}"
+        owner: elastic
+        group: dba
+        recurse: yes
+
+    # -------------------------------------------------
+    # Config directory permissions (production style)
+    # -------------------------------------------------
+    - name: Secure config directory
+      file:
+        path: "{{ es_config }}"
+        mode: '0750'
+        owner: elastic
+        group: dba
+        recurse: yes
+
+    - name: Secure jvm options
+      file:
+        path: "{{ es_config }}/{{ item }}"
+        mode: '0640'
+      loop:
+        - jvm.options
+        - jvm.options.d
+      ignore_errors: yes
+
+    - name: Secure users and roles files
+      file:
+        path: "{{ es_config }}/{{ item }}"
+        mode: '0600'
+      loop:
+        - users
+        - users_roles
+      ignore_errors: yes
+
+    - name: Secure elasticsearch.yml
+      file:
+        path: "{{ es_config }}/elasticsearch.yml"
+        owner: elastic
+        group: dba
+        mode: '0640'
+
+    # -------------------------------------------------
+    # Elasticsearch keystore (CREATE + SECURE)
+    # -------------------------------------------------
+    - name: Create elasticsearch keystore if missing
+      become_user: elastic
+      command: "{{ es_home }}/bin/elasticsearch-keystore create"
+      args:
+        creates: "{{ es_config }}/elasticsearch.keystore"
+
+    - name: Set ownership and permissions on elasticsearch keystore
+      file:
+        path: "{{ es_config }}/elasticsearch.keystore"
+        owner: elastic
+        group: dba
+        mode: '0600'
+
+    # -------------------------------------------------
+    # Runtime directories
+    # -------------------------------------------------
+    - name: Set permissions for runtime directories
+      file:
+        path: "{{ es_home }}/{{ item }}"
+        mode: '0755'
+        recurse: yes
+      loop:
+        - bin
+        - jdk
+        - lib
+        - modules
+        - plugins
+
+    # -------------------------------------------------
+    # Elasticsearch configuration
+    # -------------------------------------------------
+    - name: Configure elasticsearch.yml
+      blockinfile:
+        path: "{{ es_config }}/elasticsearch.yml"
+        create: yes
+        owner: elastic
+        group: dba
+        mode: '0640'
+        block: |
+          cluster.name: udlprod-cluster
+          node.roles: [ master, data ]
+
+          node.name: node-1
+          path.data: /elastic/data
+          path.logs: /elastic/log
+
+          network.host: 0.0.0.0
+          http.port: 9200
+
+          discovery.seed_hosts:
+            - 192.168.100.28
+            - 192.168.100.32
+            - 192.168.100.26
+
+          cluster.initial_master_nodes:
+            - node-1
+            - node-2
+            - node-3
